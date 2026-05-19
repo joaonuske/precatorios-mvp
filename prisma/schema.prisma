@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  phone        String?
+  document     String?
+  createdAt    DateTime  @default(now())
+
+  isAdmin            Boolean   @default(false)
+  kycStatus          String?
+  kycCpf             String?
+  kycBirthDate       DateTime?
+  kycAddress         String?
+  kycDocPath         String?
+  kycDeclaration     Boolean   @default(false)
+  kycSubmittedAt     DateTime?
+  kycReviewedAt      DateTime?
+  kycRejectionReason String?
+
+  auctions    Auction[] @relation("CredorAuctions")
+  bids        Bid[]
+  wonAuctions Auction[] @relation("WinnerAuctions")
+}
+
+model Auction {
+  id              String   @id @default(cuid())
+  credorId        String
+  credor          User     @relation("CredorAuctions", fields: [credorId], references: [id])
+  title           String
+  tribunal        String
+  numeroProcesso String
+  enteDevedor     String
+  anoLOA          Int
+  valorFace       Float
+  lanceMinimoPct  Float    @default(60)
+  pdfPath         String?
+  pdfSha256       String?
+  pdfSignatures   String?
+  descricao       String?
+  startsAt        DateTime @default(now())
+  endsAt          DateTime
+  status          String   @default("active")
+  winnerId        String?
+  winner          User?    @relation("WinnerAuctions", fields: [winnerId], references: [id])
+  winningBid      Float?
+  commissionPct   Float    @default(5)
+  contactReleased Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  datajudStatus    String?
+  datajudSummary   String?
+  datajudCheckedAt DateTime?
+  suspendedReason  String?
+  suspendedAt      DateTime?
+
+  ddDeadline       DateTime?
+  confirmedAt      DateTime?
+  withdrawnAt      DateTime?
+  withdrawnReason  String?
+
+  bids Bid[]
+
+  @@index([status, endsAt])
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  auctionId String
+  auction   Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  bidderId  String
+  bidder    User     @relation(fields: [bidderId], references: [id])
+  amount    Float
+  createdAt DateTime @default(now())
+
+  @@index([auctionId, amount])
+}
