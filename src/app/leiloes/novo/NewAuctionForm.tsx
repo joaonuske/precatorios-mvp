@@ -40,7 +40,7 @@ export function NewAuctionForm() {
     startPreview(async () => {
       const res = await previewProcessoAction(value);
       if ("error" in res) {
-        setPreviewError(res.error);
+        setPreviewError(res.error ?? "Erro na consulta.");
         setPreview(null);
         return;
       }

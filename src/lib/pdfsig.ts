@@ -109,7 +109,7 @@ function verifySignature(pdf: Buffer, raw: RawSig): SignerInfo {
 
     // Parse CMS/PKCS#7
     const cmsDer = forge.util.hexToBytes(raw.cmsHex.replace(/00+$/, ""));
-    const asn1 = forge.asn1.fromDer(cmsDer, { strict: false });
+    const asn1 = forge.asn1.fromDer(cmsDer, false);
     const p7 = forge.pkcs7.messageFromAsn1(asn1) as forge.pkcs7.PkcsSignedData & {
       signers?: Array<{
         digestAlgorithm?: string;

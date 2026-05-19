@@ -29,12 +29,12 @@ export async function signupAction(formData: FormData) {
     document: formData.get("document") || undefined,
   });
   if (!parsed.success) {
-    return { error: "Dados inválidos. Verifique os campos." };
+    throw new Error("Dados inválidos. Verifique os campos.");
   }
   const existing = await prisma.user.findUnique({
     where: { email: parsed.data.email },
   });
-  if (existing) return { error: "Email já cadastrado." };
+  if (existing) throw new Error("Email já cadastrado.");
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   await prisma.user.create({
     data: {
@@ -63,7 +63,7 @@ export async function loginAction(formData: FormData) {
     if ((err as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) {
       throw err;
     }
-    return { error: "Email ou senha inválidos." };
+    throw new Error("Email ou senha inválidos.");
   }
 }
 
@@ -197,13 +197,13 @@ export async function createAuctionAction(formData: FormData) {
 export async function recheckDatajudAction(auctionId: string) {
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return { error: "Não autenticado." };
+  if (!userId) throw new Error("Não autenticado.");
   const auction = await prisma.auction.findUnique({
     where: { id: auctionId },
     include: { credor: true },
   });
-  if (!auction) return { error: "Leilão não encontrado." };
-  if (auction.credorId !== userId) return { error: "Apenas o credor pode reconsultar." };
+  if (!auction) throw new Error("Leilão não encontrado.");
+  if (auction.credorId !== userId) throw new Error("Apenas o credor pode reconsultar.");
 
   const datajud = await lookupProcesso(auction.numeroProcesso, auction.credor.name, {
     tribunal: auction.tribunal,
@@ -228,13 +228,13 @@ const bidSchema = z.object({
 export async function placeBidAction(formData: FormData) {
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return { error: "Faça login para dar um lance." };
+  if (!userId) throw new Error("Faça login para dar um lance.");
 
   const parsed = bidSchema.safeParse({
     auctionId: formData.get("auctionId"),
     amount: formData.get("amount"),
   });
-  if (!parsed.success) return { error: "Lance inválido." };
+  if (!parsed.success) throw new Error("Lance inválido.");
 
   await settleIfExpired(parsed.data.auctionId);
 
@@ -242,12 +242,12 @@ export async function placeBidAction(formData: FormData) {
     where: { id: parsed.data.auctionId },
     include: { bids: { orderBy: { amount: "desc" }, take: 1 } },
   });
-  if (!auction) return { error: "Leilão não encontrado." };
+  if (!auction) throw new Error("Leilão não encontrado.");
   if (auction.status === "suspended")
-    return { error: "Leilão suspenso por alerta de integridade. Lances bloqueados." };
-  if (auction.status !== "active") return { error: "Leilão encerrado." };
+    throw new Error("Leilão suspenso por alerta de integridade. Lances bloqueados.");
+  if (auction.status !== "active") throw new Error("Leilão encerrado.");
   if (auction.credorId === userId) {
-    return { error: "Você não pode dar lance no próprio leilão." };
+    throw new Error("Você não pode dar lance no próprio leilão.");
   }
 
   const minimoAbs = (auction.valorFace * auction.lanceMinimoPct) / 100;
@@ -255,12 +255,12 @@ export async function placeBidAction(formData: FormData) {
   const floor = Math.max(minimoAbs, highest + 0.01);
 
   if (parsed.data.amount < floor) {
-    return {
-      error: `Lance precisa ser ao menos ${floor.toLocaleString("pt-BR", {
+    throw new Error(
+      `Lance precisa ser ao menos ${floor.toLocaleString("pt-BR", {
         style: "currency",
         currency: "BRL",
       })}.`,
-    };
+    );
   }
 
   const softMin = Number(process.env.SOFT_CLOSE_MINUTES ?? 5);
@@ -335,14 +335,14 @@ export async function settleIfExpired(auctionId: string) {
 export async function confirmCessionAction(auctionId: string) {
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return { error: "Não autenticado." };
+  if (!userId) throw new Error("Não autenticado.");
   await settleIfExpired(auctionId);
   const auction = await prisma.auction.findUnique({ where: { id: auctionId } });
-  if (!auction) return { error: "Leilão não encontrado." };
+  if (!auction) throw new Error("Leilão não encontrado.");
   if (auction.winnerId !== userId)
-    return { error: "Apenas o arrematante pode confirmar." };
+    throw new Error("Apenas o arrematante pode confirmar.");
   if (auction.status !== "pending_dd")
-    return { error: "Leilão não está em janela de due diligence." };
+    throw new Error("Leilão não está em janela de due diligence.");
 
   await prisma.auction.update({
     where: { id: auctionId },
@@ -354,18 +354,18 @@ export async function confirmCessionAction(auctionId: string) {
 export async function withdrawCessionAction(formData: FormData) {
   const auctionId = String(formData.get("auctionId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
-  if (!reason) return { error: "Informe o motivo da desistência." };
+  if (!reason) throw new Error("Informe o motivo da desistência.");
 
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return { error: "Não autenticado." };
+  if (!userId) throw new Error("Não autenticado.");
   await settleIfExpired(auctionId);
   const auction = await prisma.auction.findUnique({ where: { id: auctionId } });
-  if (!auction) return { error: "Leilão não encontrado." };
+  if (!auction) throw new Error("Leilão não encontrado.");
   if (auction.winnerId !== userId)
-    return { error: "Apenas o arrematante pode desistir." };
+    throw new Error("Apenas o arrematante pode desistir.");
   if (auction.status !== "pending_dd")
-    return { error: "Leilão não está em janela de due diligence." };
+    throw new Error("Leilão não está em janela de due diligence.");
 
   await prisma.auction.update({
     where: { id: auctionId },
@@ -442,9 +442,9 @@ export async function submitKycAction(_prev: { error?: string } | undefined, for
 export async function approveKycAction(targetUserId: string) {
   const session = await auth();
   const adminId = (session?.user as { id?: string } | undefined)?.id;
-  if (!adminId) return { error: "Não autenticado." };
+  if (!adminId) throw new Error("Não autenticado.");
   const admin = await prisma.user.findUnique({ where: { id: adminId } });
-  if (!admin?.isAdmin) return { error: "Apenas admins." };
+  if (!admin?.isAdmin) throw new Error("Apenas admins.");
   await prisma.user.update({
     where: { id: targetUserId },
     data: {
@@ -459,13 +459,13 @@ export async function approveKycAction(targetUserId: string) {
 export async function rejectKycAction(formData: FormData) {
   const session = await auth();
   const adminId = (session?.user as { id?: string } | undefined)?.id;
-  if (!adminId) return { error: "Não autenticado." };
+  if (!adminId) throw new Error("Não autenticado.");
   const admin = await prisma.user.findUnique({ where: { id: adminId } });
-  if (!admin?.isAdmin) return { error: "Apenas admins." };
+  if (!admin?.isAdmin) throw new Error("Apenas admins.");
 
   const targetUserId = String(formData.get("userId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
-  if (!reason) return { error: "Informe o motivo." };
+  if (!reason) throw new Error("Informe o motivo.");
   await prisma.user.update({
     where: { id: targetUserId },
     data: {
@@ -536,7 +536,7 @@ export async function monitorAllActive() {
   for (const a of actives) {
     const r = await monitorAuction(a.id);
     if ("suspended" in r) {
-      results.push({ id: a.id, suspended: r.suspended, alerts: r.alerts });
+      results.push({ id: a.id, suspended: !!r.suspended, alerts: r.alerts ?? 0 });
     }
     // pequeno respiro pra não martelar o Datajud
     await new Promise((res) => setTimeout(res, 250));
