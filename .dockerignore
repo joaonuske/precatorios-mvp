@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.env
+.env.local
+*.db
+uploads/
+.claude/
+src/generated/prisma
+README.md
+DEPLOY.md
