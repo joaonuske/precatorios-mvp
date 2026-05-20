@@ -365,6 +365,21 @@ export default async function AuctionDetailPage({
                 ((auction.winningBid ?? 0) * auction.commissionPct) / 100,
               )}
             </div>
+            <div className="mt-3 pt-3 border-t border-emerald-200">
+              <a
+                href={`/api/leiloes/${auction.id}/contrato`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block bg-emerald-700 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-800"
+              >
+                📄 Baixar contrato de cessão (PDF)
+              </a>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Documento pré-preenchido com os dados do leilão. As partes
+                podem assiná-lo digitalmente (ICP-Brasil) ou com reconhecimento
+                de firma.
+              </p>
+            </div>
           </div>
         )}
       </aside>
