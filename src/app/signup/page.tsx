@@ -1,9 +1,10 @@
-import { signupAction } from "@/lib/actions";
 import Link from "next/link";
+import { signupAction } from "@/lib/actions";
 
 const ERRORS: Record<string, string> = {
   existe: "Esse e-mail já está cadastrado. Faça login ou use outro endereço.",
   dados: "Dados inválidos. Verifique os campos (senha mínima de 6 caracteres).",
+  termos: "Você precisa aceitar os Termos de Uso e a Política de Privacidade.",
 };
 
 export default async function SignupPage({
@@ -26,6 +27,20 @@ export default async function SignupPage({
         <Field name="password" label="Senha" type="password" required />
         <Field name="phone" label="Telefone (liberado ao vencedor)" />
         <Field name="document" label="CPF/CNPJ" />
+        <label className="flex items-start gap-2 text-sm pt-2">
+          <input type="checkbox" name="acceptTos" required className="mt-1" />
+          <span className="text-slate-700">
+            Li e aceito os{" "}
+            <Link href="/termos" target="_blank" className="underline">
+              Termos de Uso
+            </Link>{" "}
+            e a{" "}
+            <Link href="/privacidade" target="_blank" className="underline">
+              Política de Privacidade
+            </Link>
+            .
+          </span>
+        </label>
         <button className="w-full bg-slate-900 text-white py-2 rounded hover:bg-slate-700">
           Criar conta
         </button>

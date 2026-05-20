@@ -27,6 +27,8 @@ model User {
   kycSubmittedAt     DateTime?
   kycReviewedAt      DateTime?
   kycRejectionReason String?
+  acceptedTosAt      DateTime?
+  acceptedTosVersion String?
 
   auctions    Auction[] @relation("CredorAuctions")
   bids        Bid[]

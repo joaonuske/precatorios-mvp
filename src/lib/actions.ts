@@ -12,12 +12,15 @@ import { lookupProcesso } from "@/lib/datajud";
 import { cleanCpf, isValidCpf } from "@/lib/cpf";
 import { analyzePdf } from "@/lib/pdfsig";
 
+const TOS_VERSION = "2026.05.20";
+
 const signupSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
   phone: z.string().optional(),
   document: z.string().optional(),
+  acceptTos: z.string().optional(),
 });
 
 export async function signupAction(formData: FormData) {
@@ -27,9 +30,13 @@ export async function signupAction(formData: FormData) {
     password: formData.get("password"),
     phone: formData.get("phone") || undefined,
     document: formData.get("document") || undefined,
+    acceptTos: formData.get("acceptTos") || undefined,
   });
   if (!parsed.success) {
     redirect("/signup?error=dados");
+  }
+  if (parsed.data.acceptTos !== "on") {
+    redirect("/signup?error=termos");
   }
   const existing = await prisma.user.findUnique({
     where: { email: parsed.data.email },
@@ -43,6 +50,8 @@ export async function signupAction(formData: FormData) {
       passwordHash,
       phone: parsed.data.phone,
       document: parsed.data.document,
+      acceptedTosAt: new Date(),
+      acceptedTosVersion: TOS_VERSION,
     },
   });
   await signIn("credentials", {

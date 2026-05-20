@@ -87,9 +87,19 @@ export default async function RootLayout({
           {children}
         </main>
         <footer className="border-t bg-white text-xs text-slate-500">
-          <div className="max-w-6xl mx-auto px-4 py-3">
-            MVP — apenas conecta as partes. Validação do crédito é
-            responsabilidade do comprador.
+          <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between gap-2">
+            <span>
+              MVP — apenas conecta as partes. Validação do crédito é
+              responsabilidade do comprador.
+            </span>
+            <span className="flex gap-3">
+              <Link href="/termos" className="hover:underline">
+                Termos
+              </Link>
+              <Link href="/privacidade" className="hover:underline">
+                Privacidade
+              </Link>
+            </span>
           </div>
         </footer>
       </body>
