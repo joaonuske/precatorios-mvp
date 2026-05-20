@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { monitorAllActive } from "@/lib/actions";
+import { monitorAllActive, monitorAllBypass } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +19,11 @@ async function handle(req: Request) {
   if (!ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const summary = await monitorAllActive();
-  return NextResponse.json({ ok: true, ...summary });
+  const [active, bypass] = await Promise.all([
+    monitorAllActive(),
+    monitorAllBypass(),
+  ]);
+  return NextResponse.json({ ok: true, active, bypass });
 }
 
 export async function GET(req: Request) {

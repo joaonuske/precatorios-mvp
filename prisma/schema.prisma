@@ -71,6 +71,9 @@ model Auction {
   withdrawnAt      DateTime?
   withdrawnReason  String?
 
+  bypassDetectedAt DateTime?
+  bypassDetail     String?
+
   bids Bid[]
 
   @@index([status, endsAt])

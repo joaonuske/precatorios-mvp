@@ -324,6 +324,28 @@ export default async function AuctionDetailPage({
           </div>
         )}
 
+        {auction.bypassDetectedAt && (isCredor || isWinner) && (
+          <div className="bg-red-100 border-2 border-red-400 rounded p-4 text-sm text-red-900">
+            <div className="font-semibold mb-1">
+              ⚠ Possível bypass detectado pelo monitoramento
+            </div>
+            <p className="text-xs">
+              Movimentação no CNJ posterior ao encerramento sugere cessão
+              formalizada fora da Plataforma. Detectado em{" "}
+              {auction.bypassDetectedAt.toLocaleString("pt-BR")}.
+            </p>
+            {auction.bypassDetail && (
+              <p className="text-xs mt-2">
+                <strong>Detalhe:</strong> {auction.bypassDetail}
+              </p>
+            )}
+            <p className="text-xs mt-2">
+              Conforme cláusula 5 dos Termos de Uso, é devida multa contratual
+              de 2x a comissão original.
+            </p>
+          </div>
+        )}
+
         {auction.status === "withdrawn" && (isCredor || isWinner) && (
           <div className="bg-slate-100 border border-slate-200 rounded p-4 text-sm">
             <div className="font-semibold mb-1">

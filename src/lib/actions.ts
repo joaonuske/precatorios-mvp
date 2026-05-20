@@ -564,6 +564,122 @@ export async function monitorAuction(auctionId: string) {
   } as const;
 }
 
+function normalizeForBypass(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export async function monitorBypass(auctionId: string) {
+  const auction = await prisma.auction.findUnique({
+    where: { id: auctionId },
+    include: {
+      credor: true,
+      bids: { include: { bidder: true } },
+    },
+  });
+  if (!auction) return { skipped: true as const };
+  if (auction.status !== "withdrawn" && auction.status !== "expired") {
+    return { skipped: true as const };
+  }
+  if (auction.bypassDetectedAt) return { skipped: true as const };
+
+  const closedAt = auction.withdrawnAt ?? auction.endsAt;
+  const days = (Date.now() - closedAt.getTime()) / (1000 * 60 * 60 * 24);
+  if (days > 90) return { skipped: true as const };
+
+  const datajud = await lookupProcesso(
+    auction.numeroProcesso,
+    auction.credor.name,
+  );
+
+  if (!datajud.movimentos || datajud.movimentos.length === 0) {
+    return { detected: false as const };
+  }
+
+  // Nomes a procurar nas movimentações (depois do encerramento do leilão)
+  const participantes = new Set<string>();
+  for (const b of auction.bids) {
+    participantes.add(normalizeForBypass(b.bidder.name));
+  }
+  participantes.add(normalizeForBypass(auction.credor.name));
+
+  const since = closedAt.getTime();
+  const found: Array<{ movimento: string; data: string; nome: string }> = [];
+  for (const m of datajud.movimentos) {
+    if (!/cess[aã]o|cession[aá]rio|habilita|substitui[cç][aã]o/i.test(m.nome))
+      continue;
+    if (m.dataHora) {
+      const movTime = new Date(m.dataHora).getTime();
+      if (isNaN(movTime) || movTime < since) continue;
+    }
+    const haystack = normalizeForBypass(m.nome);
+    for (const p of participantes) {
+      const tokens = p.split(" ").filter((t) => t.length >= 4);
+      if (tokens.length === 0) continue;
+      const matched = tokens.filter((t) => haystack.includes(t)).length;
+      if (matched >= Math.min(2, tokens.length)) {
+        found.push({
+          movimento: m.nome,
+          data: m.dataHora ?? "",
+          nome: p,
+        });
+      }
+    }
+  }
+
+  if (found.length > 0) {
+    const detail = found
+      .map(
+        (f) =>
+          `Movimentação "${f.movimento}"${f.data ? ` em ${f.data.slice(0, 10)}` : ""} compatível com participante do leilão ("${f.nome}").`,
+      )
+      .join(" · ");
+    await prisma.auction.update({
+      where: { id: auctionId },
+      data: {
+        bypassDetectedAt: new Date(),
+        bypassDetail: detail,
+      },
+    });
+    return { detected: true as const, detail };
+  }
+
+  return { detected: false as const };
+}
+
+export async function monitorAllBypass() {
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const candidates = await prisma.auction.findMany({
+    where: {
+      status: { in: ["withdrawn", "expired"] },
+      bypassDetectedAt: null,
+      OR: [
+        { withdrawnAt: { gte: cutoff } },
+        { withdrawnAt: null, endsAt: { gte: cutoff } },
+      ],
+    },
+    select: { id: true },
+  });
+  const results: Array<{ id: string; detected: boolean }> = [];
+  for (const a of candidates) {
+    const r = await monitorBypass(a.id);
+    if ("detected" in r) {
+      results.push({ id: a.id, detected: !!r.detected });
+    }
+    await new Promise((res) => setTimeout(res, 250));
+  }
+  return {
+    checked: results.length,
+    bypassDetected: results.filter((r) => r.detected).length,
+    results,
+  };
+}
+
 export async function monitorAllActive() {
   const actives = await prisma.auction.findMany({
     where: { status: "active" },
