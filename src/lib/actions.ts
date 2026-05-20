@@ -29,12 +29,12 @@ export async function signupAction(formData: FormData) {
     document: formData.get("document") || undefined,
   });
   if (!parsed.success) {
-    throw new Error("Dados inválidos. Verifique os campos.");
+    redirect("/signup?error=dados");
   }
   const existing = await prisma.user.findUnique({
     where: { email: parsed.data.email },
   });
-  if (existing) throw new Error("Email já cadastrado.");
+  if (existing) redirect("/signup?error=existe");
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   await prisma.user.create({
     data: {
@@ -63,7 +63,7 @@ export async function loginAction(formData: FormData) {
     if ((err as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) {
       throw err;
     }
-    throw new Error("Email ou senha inválidos.");
+    redirect("/login?error=credenciais");
   }
 }
 

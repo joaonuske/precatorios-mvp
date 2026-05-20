@@ -1,10 +1,25 @@
 import { signupAction } from "@/lib/actions";
 import Link from "next/link";
 
-export default function SignupPage() {
+const ERRORS: Record<string, string> = {
+  existe: "Esse e-mail já está cadastrado. Faça login ou use outro endereço.",
+  dados: "Dados inválidos. Verifique os campos (senha mínima de 6 caracteres).",
+};
+
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   return (
     <div className="max-w-md mx-auto bg-white border rounded p-6">
       <h1 className="text-2xl font-semibold mb-4">Criar conta</h1>
+      {error && (
+        <div className="mb-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+          {ERRORS[error] ?? "Erro ao criar conta."}
+        </div>
+      )}
       <form action={signupAction} className="space-y-3">
         <Field name="name" label="Nome completo" required />
         <Field name="email" label="Email" type="email" required />
