@@ -42,5 +42,5 @@ next-env.d.ts
 /src/generated/prisma
 .env
 *.db
-uploads/
+/uploads/
 .claude/
