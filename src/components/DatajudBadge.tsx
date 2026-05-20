@@ -22,6 +22,11 @@ const META: Record<string, { label: string; color: string; emoji: string }> = {
     color: "bg-emerald-100 text-emerald-800 border-emerald-200",
     emoji: "✓",
   },
+  verified_cessionario: {
+    label: "Cessionário averbado",
+    color: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    emoji: "✓",
+  },
   name_mismatch: {
     label: "Nome do credor não bate",
     color: "bg-amber-100 text-amber-900 border-amber-200",

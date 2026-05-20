@@ -89,6 +89,7 @@ export type DatajudMovimento = {
 export type DatajudResult = {
   status:
     | "verified"
+    | "verified_cessionario"
     | "name_mismatch"
     | "not_found"
     | "unsupported_tribunal"
@@ -102,6 +103,8 @@ export type DatajudResult = {
   precatorioMovement?: boolean;
   alerts?: DatajudAlert[];
   movimentos?: DatajudMovimento[];
+  lastUpdate?: string;
+  cessionarioInfo?: { dataHora?: string; description: string };
   raw?: unknown;
 };
 
@@ -240,7 +243,9 @@ export async function lookupProcesso(
     classe?: { nome?: string };
     orgaoJulgador?: { nome?: string };
     partes?: Array<{ nome?: string; polo?: string }>;
-    movimentos?: Array<{ nome?: string; dataHora?: string }>;
+    movimentos?: Array<{ nome?: string; dataHora?: string; complementosTabelados?: Array<{ descricao?: string; valor?: string }> }>;
+    dataHoraUltimaAtualizacao?: string;
+    "@timestamp"?: string;
   };
 
   const partes: DatajudParte[] = (source.partes ?? []).map((p) => ({
@@ -298,11 +303,45 @@ export async function lookupProcesso(
     }
   }
 
+  // Se nome não bateu nas partes, procurar como cessionário averbado nas movimentações
+  let cessionarioInfo: { dataHora?: string; description: string } | undefined;
+  if (!matchCredor) {
+    const tokens = normalizeName(credorName)
+      .split(" ")
+      .filter((t) => t.length >= 4);
+    if (tokens.length > 0) {
+      for (const m of movimentos) {
+        const nome = m.nome ?? "";
+        if (!/cess[aã]o|cession[aá]rio|habilita|substitui[cç][aã]o/i.test(nome)) continue;
+        // Junta nome do movimento + complementos tabelados (onde costuma vir o nome do cessionário)
+        const complementos = (m.complementosTabelados ?? [])
+          .map((c) => c.descricao + " " + (c.valor ?? ""))
+          .join(" ");
+        const haystack = normalizeName(nome + " " + complementos);
+        const matched = tokens.filter((t) => haystack.includes(t)).length;
+        if (matched >= Math.min(2, tokens.length)) {
+          cessionarioInfo = { dataHora: m.dataHora, description: nome };
+          break;
+        }
+      }
+    }
+  }
+
+  const lastUpdate = source.dataHoraUltimaAtualizacao ?? source["@timestamp"];
+
+  const finalStatus = matchCredor
+    ? "verified"
+    : cessionarioInfo
+      ? "verified_cessionario"
+      : "name_mismatch";
+
   return {
-    status: matchCredor ? "verified" : "name_mismatch",
+    status: finalStatus,
     message: matchCredor
       ? "Processo localizado e nome do credor compatível com uma das partes."
-      : "Processo localizado, mas o nome do credor não bate com nenhuma parte. Verifique grafia ou se há cessão anterior.",
+      : cessionarioInfo
+        ? `Processo localizado. Credor encontrado nas movimentações como cessionário averbado${cessionarioInfo.dataHora ? ` em ${cessionarioInfo.dataHora.slice(0, 10)}` : ""}.`
+        : "Processo localizado, mas o nome do credor não bate com nenhuma parte. Verifique grafia ou se há cessão anterior.",
     tribunalLabel: parsed.tribunalLabel,
     classe: source.classe?.nome,
     orgaoJulgador: source.orgaoJulgador?.nome,
@@ -310,5 +349,7 @@ export async function lookupProcesso(
     precatorioMovement: precatorio,
     alerts,
     movimentos: movimentosOut,
+    lastUpdate,
+    cessionarioInfo,
   };
 }

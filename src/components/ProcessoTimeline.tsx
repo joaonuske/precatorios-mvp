@@ -25,6 +25,7 @@ export function ProcessoTimeline({
 }) {
   const parsed = summary ? safeParse(summary) : null;
   const movs: Movimento[] = parsed?.movimentos ?? [];
+  const lastUpdate = parsed?.lastUpdate;
 
   if (movs.length === 0) {
     return (
@@ -37,7 +38,14 @@ export function ProcessoTimeline({
   }
 
   return (
-    <ol className="relative border-l border-slate-200 ml-3 space-y-3">
+    <>
+      <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mb-3">
+        ⚠ Dados refletem o estado do processo no CNJ Datajud
+        {lastUpdate ? ` até ${fmtDate(lastUpdate)}` : ""}. O CNJ é alimentado
+        pelos tribunais com latência de semanas. Para movimentos posteriores,
+        consulte diretamente o sistema do tribunal.
+      </div>
+      <ol className="relative border-l border-slate-200 ml-3 space-y-3">
       {movs.map((m, i) => {
         const style = m.flag ? FLAG_STYLE[m.flag] : null;
         return (
@@ -66,10 +74,11 @@ export function ProcessoTimeline({
         );
       })}
     </ol>
+    </>
   );
 }
 
-function safeParse(s: string): { movimentos?: Movimento[] } | null {
+function safeParse(s: string): { movimentos?: Movimento[]; lastUpdate?: string } | null {
   try {
     return JSON.parse(s);
   } catch {
