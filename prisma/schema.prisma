@@ -73,6 +73,14 @@ model Auction {
 
   bypassDetectedAt DateTime?
   bypassDetail     String?
+  bypassResolvedAt DateTime?
+  bypassResolution String?
+
+  commissionStatus     String?
+  commissionPaidAt     DateTime?
+  commissionPaidMethod String?
+  commissionPaidNote   String?
+  commissionWaivedReason String?
 
   bids Bid[]
 

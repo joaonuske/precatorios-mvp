@@ -381,10 +381,23 @@ export default async function AuctionDetailPage({
                 <span className="text-slate-600">{auction.winner.email}</span>
               </div>
             )}
-            <div className="mt-2 text-xs text-slate-600">
-              Comissão devida pelo comprador:{" "}
+            <div className="mt-2 text-xs">
+              <strong>Comissão devida pelo comprador:</strong>{" "}
               {brl(
                 ((auction.winningBid ?? 0) * auction.commissionPct) / 100,
+              )}{" "}
+              {auction.commissionStatus === "paid" ? (
+                <span className="inline-block ml-1 bg-emerald-200 text-emerald-900 px-1.5 rounded text-[10px]">
+                  ✓ PAGA{auction.commissionPaidAt && ` em ${auction.commissionPaidAt.toLocaleDateString("pt-BR")}`}
+                </span>
+              ) : auction.commissionStatus === "waived" ? (
+                <span className="inline-block ml-1 bg-slate-200 text-slate-700 px-1.5 rounded text-[10px]">
+                  DISPENSADA
+                </span>
+              ) : (
+                <span className="inline-block ml-1 bg-amber-200 text-amber-900 px-1.5 rounded text-[10px]">
+                  PENDENTE
+                </span>
               )}
             </div>
             <div className="mt-3 pt-3 border-t border-emerald-200">

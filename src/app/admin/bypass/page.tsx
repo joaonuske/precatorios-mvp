@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { brl } from "@/lib/format";
+import { markBypassResolvedAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -117,6 +118,33 @@ export default async function AdminBypassPage() {
                     </div>
                   </div>
                 </div>
+
+                {a.bypassResolvedAt ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded p-2 text-xs">
+                    ✓ Resolvido em {a.bypassResolvedAt.toLocaleString("pt-BR")}
+                    {a.bypassResolution && (
+                      <div className="mt-1">
+                        <strong>Resolução:</strong> {a.bypassResolution}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <form
+                    action={markBypassResolvedAction}
+                    className="flex gap-2 pt-2 border-t border-red-200"
+                  >
+                    <input type="hidden" name="auctionId" value={a.id} />
+                    <input
+                      name="resolution"
+                      required
+                      placeholder="Como foi resolvido (ex: multa paga via PIX em XX/XX, ação proposta, acordo etc.)"
+                      className="border rounded px-2 py-1 text-xs flex-1"
+                    />
+                    <button className="bg-emerald-700 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-800">
+                      Marcar resolvido
+                    </button>
+                  </form>
+                )}
               </li>
             );
           })}

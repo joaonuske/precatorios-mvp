@@ -71,12 +71,21 @@ export default async function AdminPage() {
     },
   });
   let comissaoPotencial = 0;
-  let comissaoRealizada = 0;
+  let comissaoACobrar = 0;
+  let comissaoRecebida = 0;
   let comissaoBypass = 0;
+  const soldAll = await prisma.auction.findMany({
+    where: { status: "sold" },
+    select: { winningBid: true, commissionPct: true, commissionStatus: true },
+  });
   for (const a of allSettled) {
     const c = ((a.winningBid ?? 0) * a.commissionPct) / 100;
-    if (a.status === "sold") comissaoRealizada += c;
     if (a.status === "pending_dd") comissaoPotencial += c;
+  }
+  for (const a of soldAll) {
+    const c = ((a.winningBid ?? 0) * a.commissionPct) / 100;
+    if (a.commissionStatus === "paid") comissaoRecebida += c;
+    else if (a.commissionStatus !== "waived") comissaoACobrar += c;
   }
   // Bypass: dobra a comissão
   const bypass = await prisma.auction.findMany({
@@ -115,6 +124,9 @@ export default async function AdminPage() {
         <nav className="flex gap-3 text-sm">
           <Link href="/admin/kyc" className="underline">
             KYC
+          </Link>
+          <Link href="/admin/comissoes" className="underline">
+            Comissões
           </Link>
           <Link href="/admin/bypass" className="underline">
             Bypass
@@ -159,9 +171,10 @@ export default async function AdminPage() {
         <h2 className="text-sm font-semibold text-slate-600 mb-2 uppercase tracking-wide">
           Comissão
         </h2>
-        <div className="grid md:grid-cols-3 gap-3">
-          <Card label="Comissão realizada (sold)" value={brl(comissaoRealizada)} color="bg-emerald-50 border-emerald-200" />
-          <Card label="Comissão potencial (pending_dd)" value={brl(comissaoPotencial)} color="bg-sky-50 border-sky-200" />
+        <div className="grid md:grid-cols-4 gap-3">
+          <Card label="Recebido" value={brl(comissaoRecebida)} color="bg-emerald-50 border-emerald-200" />
+          <Card label="A cobrar (sold)" value={brl(comissaoACobrar)} color="bg-amber-50 border-amber-200" />
+          <Card label="Potencial (em DD)" value={brl(comissaoPotencial)} color="bg-sky-50 border-sky-200" />
           <Card
             label="Multa de bypass devida (2x)"
             value={brl(comissaoBypass)}

@@ -358,9 +358,85 @@ export async function confirmCessionAction(auctionId: string) {
 
   await prisma.auction.update({
     where: { id: auctionId },
-    data: { status: "sold", confirmedAt: new Date() },
+    data: {
+      status: "sold",
+      confirmedAt: new Date(),
+      commissionStatus: "pending",
+    },
   });
   revalidatePath(`/leiloes/${auctionId}`);
+}
+
+export async function markCommissionPaidAction(formData: FormData) {
+  const session = await auth();
+  const adminId = (session?.user as { id?: string } | undefined)?.id;
+  if (!adminId) throw new Error("Não autenticado.");
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin?.isAdmin) throw new Error("Apenas admins.");
+
+  const auctionId = String(formData.get("auctionId") ?? "");
+  const method = String(formData.get("method") ?? "pix");
+  const note = String(formData.get("note") ?? "").trim();
+  if (!auctionId) throw new Error("Leilão não informado.");
+
+  await prisma.auction.update({
+    where: { id: auctionId },
+    data: {
+      commissionStatus: "paid",
+      commissionPaidAt: new Date(),
+      commissionPaidMethod: method,
+      commissionPaidNote: note || null,
+    },
+  });
+  revalidatePath(`/leiloes/${auctionId}`);
+  revalidatePath("/admin/comissoes");
+  revalidatePath("/admin");
+}
+
+export async function markCommissionWaivedAction(formData: FormData) {
+  const session = await auth();
+  const adminId = (session?.user as { id?: string } | undefined)?.id;
+  if (!adminId) throw new Error("Não autenticado.");
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin?.isAdmin) throw new Error("Apenas admins.");
+
+  const auctionId = String(formData.get("auctionId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!auctionId || !reason) throw new Error("Informe motivo.");
+
+  await prisma.auction.update({
+    where: { id: auctionId },
+    data: {
+      commissionStatus: "waived",
+      commissionWaivedReason: reason,
+      commissionPaidAt: new Date(),
+    },
+  });
+  revalidatePath(`/leiloes/${auctionId}`);
+  revalidatePath("/admin/comissoes");
+  revalidatePath("/admin");
+}
+
+export async function markBypassResolvedAction(formData: FormData) {
+  const session = await auth();
+  const adminId = (session?.user as { id?: string } | undefined)?.id;
+  if (!adminId) throw new Error("Não autenticado.");
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin?.isAdmin) throw new Error("Apenas admins.");
+
+  const auctionId = String(formData.get("auctionId") ?? "");
+  const resolution = String(formData.get("resolution") ?? "").trim();
+  if (!auctionId || !resolution) throw new Error("Informe resolução.");
+
+  await prisma.auction.update({
+    where: { id: auctionId },
+    data: {
+      bypassResolvedAt: new Date(),
+      bypassResolution: resolution,
+    },
+  });
+  revalidatePath(`/leiloes/${auctionId}`);
+  revalidatePath("/admin/bypass");
 }
 
 export async function withdrawCessionAction(formData: FormData) {
