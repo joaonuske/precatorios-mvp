@@ -119,13 +119,16 @@ export async function createAuctionAction(formData: FormData) {
   let pdfSha256: string | null = null;
   let pdfSignatures: string | null = null;
   const pdf = formData.get("pdf");
-  if (pdf instanceof File && pdf.size > 0) {
-    if (pdf.type !== "application/pdf") {
-      return { error: "Arquivo deve ser PDF." };
-    }
-    if (pdf.size > 10 * 1024 * 1024) {
-      return { error: "PDF maior que 10MB." };
-    }
+  if (!(pdf instanceof File) || pdf.size === 0) {
+    return { error: "Anexe o ofício requisitório (PDF) — obrigatório." };
+  }
+  if (pdf.type !== "application/pdf") {
+    return { error: "Arquivo deve ser PDF." };
+  }
+  if (pdf.size > 10 * 1024 * 1024) {
+    return { error: "PDF maior que 10MB." };
+  }
+  {
     const uploadsDir = path.resolve(process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"));
     await mkdir(uploadsDir, { recursive: true });
     const filename = `${Date.now()}-${pdf.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;

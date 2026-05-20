@@ -186,14 +186,18 @@ export function NewAuctionForm() {
       </label>
       <label className="block text-sm">
         <span className="block mb-1 text-slate-700">
-          Ofício requisitório (PDF, até 10MB)
+          Ofício requisitório (PDF, até 10MB) <span className="text-red-600">*</span>
         </span>
         <input
           name="pdf"
           type="file"
+          required
           accept="application/pdf"
           className="block"
         />
+        <span className="block text-xs text-slate-500 mt-1">
+          Obrigatório. Esse documento é a base da diligência do comprador.
+        </span>
       </label>
       <button
         disabled={pending}
