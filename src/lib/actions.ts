@@ -404,21 +404,45 @@ export async function submitKycAction(_prev: { error?: string } | undefined, for
   }
 
   const doc = formData.get("docId");
+  const docBack = formData.get("docIdBack");
   if (!(doc instanceof File) || doc.size === 0) {
-    return { error: "Envie a foto do documento (RG ou CNH)." };
+    return { error: "Envie a foto do documento (frente)." };
   }
-  if (!/^image\/(jpe?g|png|webp)$|^application\/pdf$/.test(doc.type)) {
-    return { error: "Documento deve ser JPG, PNG, WebP ou PDF." };
-  }
-  if (doc.size > 8 * 1024 * 1024) {
-    return { error: "Documento maior que 8MB." };
+  const validateFile = (f: File, label: string) => {
+    if (!/^image\/(jpe?g|png|webp)$|^application\/pdf$/.test(f.type)) {
+      return `${label} deve ser JPG, PNG, WebP ou PDF.`;
+    }
+    if (f.size > 8 * 1024 * 1024) {
+      return `${label} maior que 8MB.`;
+    }
+    return null;
+  };
+  const docErr = validateFile(doc, "Documento (frente)");
+  if (docErr) return { error: docErr };
+  if (docBack instanceof File && docBack.size > 0) {
+    const backErr = validateFile(docBack, "Documento (verso)");
+    if (backErr) return { error: backErr };
   }
 
-  const dir = path.join(process.cwd(), "uploads", "kyc", userId);
-  await mkdir(dir, { recursive: true });
-  const ext = doc.name.split(".").pop()?.toLowerCase() ?? "bin";
-  const filename = `${Date.now()}.${ext}`;
-  await writeFile(path.join(dir, filename), Buffer.from(await doc.arrayBuffer()));
+  const dir = path.resolve(
+    process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"),
+  );
+  const userDir = path.join(dir, "kyc", userId);
+  await mkdir(userDir, { recursive: true });
+
+  const saveFile = async (f: File, prefix: string) => {
+    const ext = f.name.split(".").pop()?.toLowerCase() ?? "bin";
+    const safeExt = ext.replace(/[^a-z0-9]/g, "").slice(0, 5) || "bin";
+    const filename = `${prefix}-${Date.now()}.${safeExt}`;
+    await writeFile(path.join(userDir, filename), Buffer.from(await f.arrayBuffer()));
+    return `${userId}/${filename}`;
+  };
+
+  const docPath = await saveFile(doc, "frente");
+  let docBackPath: string | null = null;
+  if (docBack instanceof File && docBack.size > 0) {
+    docBackPath = await saveFile(docBack, "verso");
+  }
 
   await prisma.user.update({
     where: { id: userId },
@@ -426,7 +450,8 @@ export async function submitKycAction(_prev: { error?: string } | undefined, for
       kycCpf: cleanCpf(parsed.data.cpf),
       kycBirthDate: new Date(parsed.data.birthDate),
       kycAddress: parsed.data.address,
-      kycDocPath: `${userId}/${filename}`,
+      kycDocPath: docPath,
+      kycDocBackPath: docBackPath,
       kycDeclaration: true,
       kycStatus: "pending",
       kycSubmittedAt: new Date(),

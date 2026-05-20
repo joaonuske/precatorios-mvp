@@ -49,18 +49,31 @@ export function KycForm({
           className="w-full border rounded px-3 py-2"
         />
       </label>
-      <label className="block text-sm">
-        <span className="block mb-1 text-slate-700">
-          Foto do documento (RG ou CNH) — JPG/PNG/PDF, até 8MB
-        </span>
-        <input
-          name="docId"
-          type="file"
-          required
-          accept="image/jpeg,image/png,image/webp,application/pdf"
-          className="block"
-        />
-      </label>
+      <div className="grid md:grid-cols-2 gap-3">
+        <label className="block text-sm">
+          <span className="block mb-1 text-slate-700">
+            Documento — <strong>frente</strong> (JPG/PNG/PDF, até 8MB)
+          </span>
+          <input
+            name="docId"
+            type="file"
+            required
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            className="block"
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="block mb-1 text-slate-700">
+            Documento — <strong>verso</strong> (opcional; obrigatório se for RG)
+          </span>
+          <input
+            name="docIdBack"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            className="block"
+          />
+        </label>
+      </div>
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="declaration" className="mt-1" required />
         <span className="text-slate-700">

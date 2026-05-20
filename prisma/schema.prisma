@@ -22,6 +22,7 @@ model User {
   kycBirthDate       DateTime?
   kycAddress         String?
   kycDocPath         String?
+  kycDocBackPath     String?
   kycDeclaration     Boolean   @default(false)
   kycSubmittedAt     DateTime?
   kycReviewedAt      DateTime?

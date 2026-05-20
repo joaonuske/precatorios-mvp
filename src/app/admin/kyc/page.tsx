@@ -41,18 +41,28 @@ export default async function AdminKycPage() {
               <div className="text-xs text-slate-600 mb-2">
                 <strong>Endereço:</strong> {u.kycAddress ?? "—"}
               </div>
-              {u.kycDocPath && (
-                <div className="text-xs">
+              <div className="text-xs flex gap-3">
+                {u.kycDocPath && (
                   <a
                     href={`/api/uploads/kyc/${u.kycDocPath}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-sky-700 underline"
                   >
-                    Ver documento enviado
+                    Ver frente
                   </a>
-                </div>
-              )}
+                )}
+                {u.kycDocBackPath && (
+                  <a
+                    href={`/api/uploads/kyc/${u.kycDocBackPath}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sky-700 underline"
+                  >
+                    Ver verso
+                  </a>
+                )}
+              </div>
               {u.kycRejectionReason && (
                 <div className="text-xs text-red-700 mt-1">
                   Motivo da rejeição: {u.kycRejectionReason}
