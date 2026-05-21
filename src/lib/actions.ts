@@ -11,6 +11,14 @@ import { auth, signIn, signOut } from "@/lib/auth";
 import { lookupProcesso } from "@/lib/datajud";
 import { cleanCpf, isValidCpf } from "@/lib/cpf";
 import { analyzePdf } from "@/lib/pdfsig";
+import { generateCessionPdf } from "@/lib/cessionContract";
+import {
+  addSignerToDocument,
+  createSigner,
+  downloadSignedPdf,
+  getDocument,
+  uploadDocument,
+} from "@/lib/clicksign";
 
 const TOS_VERSION = "2026.05.20";
 
@@ -415,6 +423,121 @@ export async function markCommissionWaivedAction(formData: FormData) {
   revalidatePath(`/leiloes/${auctionId}`);
   revalidatePath("/admin/comissoes");
   revalidatePath("/admin");
+}
+
+export async function startSignatureAction(auctionId: string) {
+  const session = await auth();
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) throw new Error("Não autenticado.");
+
+  const auction = await prisma.auction.findUnique({
+    where: { id: auctionId },
+    include: { credor: true, winner: true },
+  });
+  if (!auction) throw new Error("Leilão não encontrado.");
+  if (!auction.winner) throw new Error("Leilão sem arrematante.");
+  if (userId !== auction.credorId && userId !== auction.winnerId) {
+    throw new Error("Apenas credor ou arrematante podem iniciar a assinatura.");
+  }
+  if (auction.status !== "sold") {
+    throw new Error("Cessão ainda não confirmada.");
+  }
+  if (auction.commissionStatus !== "paid" && auction.commissionStatus !== "waived") {
+    throw new Error("Comissão precisa estar paga antes de iniciar a assinatura.");
+  }
+  if (auction.clicksignDocumentKey) {
+    throw new Error("Assinatura já iniciada para este leilão.");
+  }
+
+  const pdfBytes = await generateCessionPdf({
+    auction,
+    credor: auction.credor,
+    comprador: auction.winner,
+  });
+  const pdfBase64 =
+    "data:application/pdf;base64," + Buffer.from(pdfBytes).toString("base64");
+
+  const filenamePath = `/precatorios/cessao-${auction.id.slice(0, 8)}.pdf`;
+  const deadlineAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+  const doc = await uploadDocument({ filenamePath, pdfBase64, deadlineAt });
+
+  const message =
+    "Cessão de crédito do precatório " +
+    auction.numeroProcesso +
+    " — leilão Precatórios MVP. Assine eletronicamente para concluir a operação.";
+
+  const credorSigner = await createSigner({
+    name: auction.credor.name,
+    email: auction.credor.email,
+    cpf: auction.credor.kycCpf ?? undefined,
+    birthday: auction.credor.kycBirthDate?.toISOString().slice(0, 10),
+    phoneNumber: auction.credor.phone ?? undefined,
+  });
+  await addSignerToDocument({
+    documentKey: doc.key,
+    signerKey: credorSigner.key,
+    signAs: "party",
+    message,
+  });
+
+  const winnerSigner = await createSigner({
+    name: auction.winner.name,
+    email: auction.winner.email,
+    cpf: auction.winner.kycCpf ?? undefined,
+    birthday: auction.winner.kycBirthDate?.toISOString().slice(0, 10),
+    phoneNumber: auction.winner.phone ?? undefined,
+  });
+  await addSignerToDocument({
+    documentKey: doc.key,
+    signerKey: winnerSigner.key,
+    signAs: "party",
+    message,
+  });
+
+  await prisma.auction.update({
+    where: { id: auctionId },
+    data: {
+      clicksignDocumentKey: doc.key,
+      signatureStatus: "pending",
+      signatureStartedAt: new Date(),
+    },
+  });
+  revalidatePath(`/leiloes/${auctionId}`);
+}
+
+// Chamada pelo webhook do Clicksign quando o documento for finalizado
+export async function ingestSignedDocument(documentKey: string) {
+  const auction = await prisma.auction.findFirst({
+    where: { clicksignDocumentKey: documentKey },
+  });
+  if (!auction) return { skipped: true as const, reason: "not_found" };
+
+  const doc = await getDocument(documentKey);
+  // Clicksign marca status como "closed" quando todos os signatários assinaram
+  if (doc.status !== "closed" && doc.status !== "signed") {
+    return { skipped: true as const, status: doc.status };
+  }
+
+  const pdfBuf = await downloadSignedPdf(documentKey);
+  const baseDir = path.resolve(
+    process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"),
+  );
+  const signedDir = path.join(baseDir, "signed");
+  await mkdir(signedDir, { recursive: true });
+  const filename = `cessao-${auction.id}.pdf`;
+  await writeFile(path.join(signedDir, filename), pdfBuf);
+
+  await prisma.auction.update({
+    where: { id: auction.id },
+    data: {
+      signatureStatus: "signed",
+      signedAt: new Date(),
+      signedPdfPath: filename,
+    },
+  });
+  revalidatePath(`/leiloes/${auction.id}`);
+  return { ingested: true as const, auctionId: auction.id };
 }
 
 export async function markBypassResolvedAction(formData: FormData) {

@@ -82,6 +82,12 @@ model Auction {
   commissionPaidNote   String?
   commissionWaivedReason String?
 
+  clicksignDocumentKey String?
+  signatureStatus      String?
+  signatureStartedAt   DateTime?
+  signedAt             DateTime?
+  signedPdfPath        String?
+
   bids Bid[]
 
   @@index([status, endsAt])

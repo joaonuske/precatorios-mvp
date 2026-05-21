@@ -8,6 +8,7 @@ import {
   placeBidAction,
   recheckDatajudAction,
   settleIfExpired,
+  startSignatureAction,
   withdrawCessionAction,
 } from "@/lib/actions";
 import { DatajudBadge } from "@/components/DatajudBadge";
@@ -400,20 +401,67 @@ export default async function AuctionDetailPage({
                 </span>
               )}
             </div>
-            <div className="mt-3 pt-3 border-t border-emerald-200">
-              <a
-                href={`/api/leiloes/${auction.id}/contrato`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-block bg-emerald-700 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-800"
-              >
-                📄 Baixar contrato de cessão (PDF)
-              </a>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Documento pré-preenchido com os dados do leilão. As partes
-                podem assiná-lo digitalmente (ICP-Brasil) ou com reconhecimento
-                de firma.
-              </p>
+            <div className="mt-3 pt-3 border-t border-emerald-200 space-y-2">
+              {auction.signatureStatus === "signed" && auction.signedPdfPath ? (
+                <>
+                  <a
+                    href={`/api/leiloes/${auction.id}/contrato-assinado`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block bg-emerald-700 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-800"
+                  >
+                    📄 Baixar contrato assinado (PDF)
+                  </a>
+                  <p className="text-[11px] text-emerald-800">
+                    ✓ Assinado eletronicamente em{" "}
+                    {auction.signedAt?.toLocaleString("pt-BR")}. Documento com
+                    validade jurídica conforme MP 2.200-2/2001.
+                  </p>
+                </>
+              ) : auction.signatureStatus === "pending" ? (
+                <>
+                  <div className="rounded border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900">
+                    ⏳ Aguardando assinaturas — verifique seu e-mail. Iniciado em{" "}
+                    {auction.signatureStartedAt?.toLocaleString("pt-BR")}.
+                  </div>
+                  <a
+                    href={`/api/leiloes/${auction.id}/contrato`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block text-xs underline text-slate-600"
+                  >
+                    Baixar minuta original (sem assinaturas)
+                  </a>
+                </>
+              ) : (auction.commissionStatus === "paid" || auction.commissionStatus === "waived") ? (
+                <>
+                  <form action={startSignatureAction.bind(null, auction.id)}>
+                    <button className="bg-sky-700 text-white px-3 py-1.5 rounded text-xs hover:bg-sky-800">
+                      ✍ Iniciar assinatura digital
+                    </button>
+                  </form>
+                  <p className="text-[11px] text-slate-500">
+                    Sobe o contrato para o Clicksign, dispara e-mails para as
+                    duas partes assinarem. Status atualiza automaticamente
+                    quando os dois finalizarem.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                    💰 Assinatura digital fica disponível após o pagamento da
+                    comissão.
+                  </div>
+                  <a
+                    href={`/api/leiloes/${auction.id}/contrato`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block text-xs underline text-slate-600"
+                  >
+                    Baixar minuta (sem assinaturas)
+                  </a>
+                </>
+              )}
             </div>
           </div>
         )}
