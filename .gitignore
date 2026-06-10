@@ -44,3 +44,11 @@ next-env.d.ts
 *.db
 /uploads/
 .claude/
+
+# gerador de acórdãos CARF — entradas/saídas locais não versionadas
+/acordaos-carf/atas/*.pdf
+/acordaos-carf/atas/*.PDF
+/acordaos-carf/acordaos_gerados/*.docx
+/acordaos-carf/acordaos_gerados/*.csv
+/acordaos-carf/MODELO.docx
+__pycache__/
